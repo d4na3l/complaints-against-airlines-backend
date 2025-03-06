@@ -25,6 +25,8 @@ class DatabaseSeeder extends Seeder
             AirlineAirportsSeeder::class,
             // Otros seeders necesarios...
             UsersSeeder::class, // Seeder para crear usuarios de prueba
+            UserComplaintsSeeder::class,
+            FilesSeeder::class,
         ]);
     }
 }
