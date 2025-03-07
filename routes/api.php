@@ -38,10 +38,27 @@ use Illuminate\Support\Facades\Route;
 // Ruta de prueba para generar token (solo en entorno de desarrollo)
 if (app()->environment('local', 'dev', 'test')) {
     Route::get('/generate-test-token', function () {
-        $user = \App\Models\User::find(1);
-        $token = $user->createToken('test-token')->plainTextToken;
+        $tokens = []; // Array para almacenar los tokens generados
 
-        return ['token' => $token];
+        // Generar token para usuario "administrado" (ID 1)
+        $userAdministrado = \App\Models\User::find(1);
+        if ($userAdministrado) { // Verifica si el usuario existe
+            $tokens['administrado'] = $userAdministrado->createToken('token-administrado')->plainTextToken;
+        }
+
+        // Generar token para usuario "administrador" (ID 4)
+        $userAdministrador = \App\Models\User::find(4);
+        if ($userAdministrador) { // Verifica si el usuario existe
+            $tokens['administrador'] = $userAdministrador->createToken('token-administrador')->plainTextToken;
+        }
+
+        // Generar token para usuario "funcionario" (ID 7)
+        $userFuncionario = \App\Models\User::find(7);
+        if ($userFuncionario) { // Verifica si el usuario existe
+            $tokens['funcionario'] = $userFuncionario->createToken('token-funcionario')->plainTextToken;
+        }
+
+        return [$tokens]; // Devuelve todos los tokens en un array asociativo
     });
 }
 
@@ -130,45 +147,47 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     Route::get('/denuncias/{complaintId}', [ComplaintController::class, 'showComplaint'])
         ->name('denuncias.show');
+});
 
-    /*
-     * [Rutas de datos de referencia]
-     * 
-     * Endpoints para obtener datos de catálogos y referencias.
-     * Accesibles para todos los usuarios autenticados sin importar su rol.
-     */
 
+
+/*
+ * [Rutas de datos de referencia]
+ * 
+ * Endpoints para obtener datos de catálogos y referencias.
+ * Accesibles para todos los usuarios autenticados sin importar su rol.
+ */
+
+Route::prefix('v1/reference-data')->name('reference-data.')->group(function () {
     // Obtener todos los datos de referencia
-    Route::get('/reference-data', [ReferenceDataController::class, 'getAllReferences'])
+    Route::get('reference-all', [ReferenceDataController::class, 'getAllReferences'])
         ->name('reference-data.all');
 
     // Rutas específicas para cada tipo de dato de referencia
-    Route::prefix('reference-data')->name('reference-data.')->group(function () {
-        Route::get('/airlines', [ReferenceDataController::class, 'getAirlines'])
-            ->name('airlines');
+    Route::get('/airlines', [ReferenceDataController::class, 'getAirlines'])
+        ->name('airlines');
 
-        Route::get('/airports', [ReferenceDataController::class, 'getAirports'])
-            ->name('airports');
+    Route::get('/airports', [ReferenceDataController::class, 'getAirports'])
+        ->name('airports');
 
-        Route::get('/complaint-status', [ReferenceDataController::class, 'getComplaintStatus'])
-            ->name('complaint-status');
+    Route::get('/complaint-status', [ReferenceDataController::class, 'getComplaintStatus'])
+        ->name('complaint-status');
 
-        Route::get('/countries', [ReferenceDataController::class, 'getCountries'])
-            ->name('countries');
+    Route::get('/countries', [ReferenceDataController::class, 'getCountries'])
+        ->name('countries');
 
-        Route::get('/document-types', [ReferenceDataController::class, 'getDocumentTypes'])
-            ->name('document-types');
+    Route::get('/document-types', [ReferenceDataController::class, 'getDocumentTypes'])
+        ->name('document-types');
 
-        Route::get('/flight-types', [ReferenceDataController::class, 'getFlightTypes'])
-            ->name('flight-types');
+    Route::get('/flight-types', [ReferenceDataController::class, 'getFlightTypes'])
+        ->name('flight-types');
 
-        Route::get('/motives', [ReferenceDataController::class, 'getMotives'])
-            ->name('motives');
+    Route::get('/motives', [ReferenceDataController::class, 'getMotives'])
+        ->name('motives');
 
-        Route::get('/roles', [ReferenceDataController::class, 'getRoles'])
-            ->name('roles');
+    Route::get('/roles', [ReferenceDataController::class, 'getRoles'])
+        ->name('roles');
 
-        Route::get('/airports-by-airline/{airlineId}', [ReferenceDataController::class, 'getAirportsByAirline'])
-            ->name('airports-by-airline');
-    });
+    Route::get('/airports-by-airline/{airlineId}', [ReferenceDataController::class, 'getAirportsByAirline'])
+        ->name('airports-by-airline');
 });
