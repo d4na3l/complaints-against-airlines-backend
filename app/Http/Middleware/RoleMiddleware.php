@@ -6,6 +6,7 @@ use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Symfony\Component\HttpFoundation\Response;
+use Illuminate\Support\Facades\Log; // Para registro de errores
 
 /**
  * Class RoleMiddleware
@@ -80,7 +81,7 @@ class RoleMiddleware
             }
         } catch (\Exception $ex) {
             // Registrar el error para fines de depuración
-            \Log::error('Error en middleware de rol: ' . $ex->getMessage(), [
+            Log::error('Error en middleware de rol: ' . $ex->getMessage(), [
                 'user_id' => $user->id ?? null,
                 'route'   => $request->path()
             ]);

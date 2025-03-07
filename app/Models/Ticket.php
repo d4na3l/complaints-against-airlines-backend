@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -17,12 +18,15 @@ use Illuminate\Database\Eloquent\Model;
  * @property int $airline_id
  * @property int $origin_airport_id
  * @property int $destination_airport_id
- * @property int $incident_airport_id
+ * @property int $user_id
  *
+ * @method \Illuminate\Database\Eloquent\Model user()
  * @method \Illuminate\Database\Eloquent\Collection complaints()
  */
 class Ticket extends Model
 {
+    use HasFactory;
+
     protected $table = 'tickets';
     protected $primaryKey = 'ticket_id';
 
@@ -34,8 +38,18 @@ class Ticket extends Model
         'airline_id',
         'origin_airport_id',
         'destination_airport_id',
-        'incident_airport_id'
+        'user_id' // Añadido user_id al fillable
     ];
+
+    /**
+     * Relación: El usuario propietario del ticket.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function user()
+    {
+        return $this->belongsTo(User::class, 'user_id', 'user_id');
+    }
 
     /**
      * Relación: El tipo de vuelo asociado a este ticket.
@@ -75,16 +89,6 @@ class Ticket extends Model
     public function destinationAirport()
     {
         return $this->belongsTo(Airport::class, 'destination_airport_id', 'airport_id');
-    }
-
-    /**
-     * Relación: El aeropuerto donde ocurrió el incidente.
-     *
-     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
-     */
-    public function incidentAirport()
-    {
-        return $this->belongsTo(Airport::class, 'incident_airport_id', 'airport_id');
     }
 
     /**

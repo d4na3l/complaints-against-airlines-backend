@@ -17,14 +17,15 @@ class CreateTicketsTable extends Migration
             $table->unsignedBigInteger('airline_id');
             $table->unsignedBigInteger('origin_airport_id');
             $table->unsignedBigInteger('destination_airport_id');
-            $table->unsignedBigInteger('incident_airport_id');
+            $table->unsignedBigInteger('user_id'); // Añadido para la relación con usuarios
             $table->timestamps();
 
             $table->foreign('flight_type_id')->references('flight_type_id')->on('flight_types');
             $table->foreign('airline_id')->references('airline_id')->on('airlines');
             $table->foreign('origin_airport_id')->references('airport_id')->on('airports');
             $table->foreign('destination_airport_id')->references('airport_id')->on('airports');
-            $table->foreign('incident_airport_id')->references('airport_id')->on('airports');
+            $table->foreign('user_id')->references('user_id')->on('users'); // Añadida nueva relación
+            // Se eliminó la clave foránea 'incident_airport_id'
         });
     }
 
