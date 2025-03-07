@@ -16,6 +16,8 @@ class AirlineAirportsSeeder extends Seeder
             // La aerolínea 2 opera en el aeropuerto 2 y 3
             ['airline_id' => 2, 'airport_id' => 2],
             ['airline_id' => 2, 'airport_id' => 3],
+            // La arolinea 3 opera solo en el aeropuerto 3
+            ['airline_id' => 3, 'airport_id' => 4],
         ]);
     }
 }

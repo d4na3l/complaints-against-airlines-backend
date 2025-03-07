@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 /**
@@ -24,6 +25,8 @@ use Illuminate\Database\Eloquent\Model;
  */
 class Complaint extends Model
 {
+    use HasFactory;
+
     protected $table = 'complaints';
     protected $primaryKey = 'complaint_id';
 
@@ -36,6 +39,7 @@ class Complaint extends Model
         'user_id',
         'ticket_id',
         'processing_notes',
+        'incident_airport_id',
         'processed_by'
     ];
 
@@ -77,6 +81,16 @@ class Complaint extends Model
     public function ticket()
     {
         return $this->belongsTo(Ticket::class, 'ticket_id', 'ticket_id');
+    }
+
+    /**
+     * Relación: El aeropuerto donde ocurrió el incidente.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\BelongsTo
+     */
+    public function incidentAirport()
+    {
+        return $this->belongsTo(Airport::class, 'incident_airport_id', 'airport_id');
     }
 
     /**
