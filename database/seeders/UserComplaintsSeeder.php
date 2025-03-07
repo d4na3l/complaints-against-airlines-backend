@@ -35,6 +35,7 @@ class UserComplaintsSeeder extends Seeder
             'airline_id' => 1,
             'origin_airport_id' => 1,
             'destination_airport_id' => 2,
+            'user_id' => 1,
             // 'incident_airport_id' => 1, // Se elimina esta línea
         ]);
 
@@ -59,6 +60,7 @@ class UserComplaintsSeeder extends Seeder
             'airline_id' => 2,
             'origin_airport_id' => 2,
             'destination_airport_id' => 3,
+            'user_id' => 1,
             // 'incident_airport_id' => 2, // Se elimina esta línea
         ]);
 
@@ -73,13 +75,26 @@ class UserComplaintsSeeder extends Seeder
             'incident_airport_id' => 1, // Se agrega incident_airport_id
         ]);
 
+        // Crear un segundo ticket para usuario 1 (sin incident_airport_id)
+        $ticket3 = Ticket::factory()->create([
+            'flight_number' => 'INT-' . rand(10000, 99999),
+            'ticket_number' => 'TKT-' . rand(1000, 9999),
+            'flight_date' => now()->subDays(2)->toDateString(),
+            'flight_type_id' => 2,
+            'airline_id' => 2,
+            'origin_airport_id' => 2,
+            'destination_airport_id' => 3,
+            'user_id' => 2,
+            // 'incident_airport_id' => 2, // Se elimina esta línea
+        ]);
+
         // Crear dos denuncias para el usuario 2 con el MISMO ticket
         Complaint::factory()->create([
             'registration_date' => now(),
             'incident_date' => now()->subDays(3)->toDateString(),
             'description' => 'Primera denuncia del usuario 2 con el mismo ticket',
             'motive_id' => $motive->motive_id,
-            'ticket_id' => $ticket->ticket_id,
+            'ticket_id' => $ticket3->ticket_id,
             'user_id' => 2,
             'complaint_status_id' => $status->complaint_status_id,
             'incident_airport_id' => 1, // Se agrega incident_airport_id
@@ -90,7 +105,7 @@ class UserComplaintsSeeder extends Seeder
             'incident_date' => now()->subDays(3)->toDateString(),
             'description' => 'Segunda denuncia del usuario 2 con el mismo ticket',
             'motive_id' => $motive->motive_id,
-            'ticket_id' => $ticket->ticket_id,
+            'ticket_id' => $ticket3->ticket_id,
             'user_id' => 2,
             'complaint_status_id' => $status->complaint_status_id,
             'incident_airport_id' => 1, // Se agrega incident_airport_id

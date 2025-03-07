@@ -3,7 +3,10 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens; // Asegúrate de agregar esta línea
 
 /**
  * Class User
@@ -34,7 +37,8 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
  */
 class User extends Authenticatable
 {
-    use HasFactory;
+    use HasApiTokens, HasFactory, Notifiable;
+
     protected $table = 'users';
     protected $primaryKey = 'user_id';
 
