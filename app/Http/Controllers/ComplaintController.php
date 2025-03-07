@@ -81,10 +81,10 @@ class ComplaintController extends Controller
             $query = Complaint::with([
                 'complaintStatus',
                 'motive',
+                'incidentAirport',
                 'ticket.airline',
                 'ticket.originAirport',
                 'ticket.destinationAirport',
-                'ticket.incidentAirport',
                 'user',
                 'processedBy',
                 'files'
