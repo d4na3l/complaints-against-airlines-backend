@@ -147,45 +147,47 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     Route::get('/denuncias/{complaintId}', [ComplaintController::class, 'showComplaint'])
         ->name('denuncias.show');
+});
 
-    /*
-     * [Rutas de datos de referencia]
-     * 
-     * Endpoints para obtener datos de catálogos y referencias.
-     * Accesibles para todos los usuarios autenticados sin importar su rol.
-     */
 
+
+/*
+ * [Rutas de datos de referencia]
+ * 
+ * Endpoints para obtener datos de catálogos y referencias.
+ * Accesibles para todos los usuarios autenticados sin importar su rol.
+ */
+
+Route::prefix('v1/reference-data')->name('reference-data.')->group(function () {
     // Obtener todos los datos de referencia
-    Route::get('/reference-data', [ReferenceDataController::class, 'getAllReferences'])
+    Route::get('reference-all', [ReferenceDataController::class, 'getAllReferences'])
         ->name('reference-data.all');
 
     // Rutas específicas para cada tipo de dato de referencia
-    Route::prefix('reference-data')->name('reference-data.')->group(function () {
-        Route::get('/airlines', [ReferenceDataController::class, 'getAirlines'])
-            ->name('airlines');
+    Route::get('/airlines', [ReferenceDataController::class, 'getAirlines'])
+        ->name('airlines');
 
-        Route::get('/airports', [ReferenceDataController::class, 'getAirports'])
-            ->name('airports');
+    Route::get('/airports', [ReferenceDataController::class, 'getAirports'])
+        ->name('airports');
 
-        Route::get('/complaint-status', [ReferenceDataController::class, 'getComplaintStatus'])
-            ->name('complaint-status');
+    Route::get('/complaint-status', [ReferenceDataController::class, 'getComplaintStatus'])
+        ->name('complaint-status');
 
-        Route::get('/countries', [ReferenceDataController::class, 'getCountries'])
-            ->name('countries');
+    Route::get('/countries', [ReferenceDataController::class, 'getCountries'])
+        ->name('countries');
 
-        Route::get('/document-types', [ReferenceDataController::class, 'getDocumentTypes'])
-            ->name('document-types');
+    Route::get('/document-types', [ReferenceDataController::class, 'getDocumentTypes'])
+        ->name('document-types');
 
-        Route::get('/flight-types', [ReferenceDataController::class, 'getFlightTypes'])
-            ->name('flight-types');
+    Route::get('/flight-types', [ReferenceDataController::class, 'getFlightTypes'])
+        ->name('flight-types');
 
-        Route::get('/motives', [ReferenceDataController::class, 'getMotives'])
-            ->name('motives');
+    Route::get('/motives', [ReferenceDataController::class, 'getMotives'])
+        ->name('motives');
 
-        Route::get('/roles', [ReferenceDataController::class, 'getRoles'])
-            ->name('roles');
+    Route::get('/roles', [ReferenceDataController::class, 'getRoles'])
+        ->name('roles');
 
-        Route::get('/airports-by-airline/{airlineId}', [ReferenceDataController::class, 'getAirportsByAirline'])
-            ->name('airports-by-airline');
-    });
+    Route::get('/airports-by-airline/{airlineId}', [ReferenceDataController::class, 'getAirportsByAirline'])
+        ->name('airports-by-airline');
 });
