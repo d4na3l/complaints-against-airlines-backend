@@ -38,10 +38,27 @@ use Illuminate\Support\Facades\Route;
 // Ruta de prueba para generar token (solo en entorno de desarrollo)
 if (app()->environment('local', 'dev', 'test')) {
     Route::get('/generate-test-token', function () {
-        $user = \App\Models\User::find(1);
-        $token = $user->createToken('test-token')->plainTextToken;
+        $tokens = []; // Array para almacenar los tokens generados
 
-        return ['token' => $token];
+        // Generar token para usuario "administrado" (ID 1)
+        $userAdministrado = \App\Models\User::find(1);
+        if ($userAdministrado) { // Verifica si el usuario existe
+            $tokens['administrado'] = $userAdministrado->createToken('token-administrado')->plainTextToken;
+        }
+
+        // Generar token para usuario "administrador" (ID 4)
+        $userAdministrador = \App\Models\User::find(4);
+        if ($userAdministrador) { // Verifica si el usuario existe
+            $tokens['administrador'] = $userAdministrador->createToken('token-administrador')->plainTextToken;
+        }
+
+        // Generar token para usuario "funcionario" (ID 7)
+        $userFuncionario = \App\Models\User::find(7);
+        if ($userFuncionario) { // Verifica si el usuario existe
+            $tokens['funcionario'] = $userFuncionario->createToken('token-funcionario')->plainTextToken;
+        }
+
+        return [$tokens]; // Devuelve todos los tokens en un array asociativo
     });
 }
 
