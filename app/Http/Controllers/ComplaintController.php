@@ -3,18 +3,39 @@
 namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use App\Http\Requests\ProcessComplaintRequest;
+use App\Http\Requests\StoreComplaintRequest;
 use App\Models\Complaint;
-use App\Models\File;
+use App\Services\FileService;
+use App\Services\TicketService;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Validation\Rule;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Log;
+use Illuminate\Database\QueryException;
 
 class ComplaintController extends Controller
 {
+    protected $ticketService;
+    protected $fileService;
+
     /**
-     * Listar denuncias para administrado
+     * Constructor del controlador.
+     *
+     * @param TicketService $ticketService
+     * @param FileService $fileService
+     */
+    public function __construct(TicketService $ticketService, FileService $fileService)
+    {
+        $this->ticketService = $ticketService;
+        $this->fileService = $fileService;
+    }
+
+    /**
+     * Listar denuncias para el usuario autenticado
+     * 
+     * @param Request $request
+     * @return \Illuminate\Http\JsonResponse
      */
     public function listComplaints(Request $request)
     {
@@ -46,122 +67,161 @@ class ComplaintController extends Controller
     }
 
     /**
-     * Registrar nueva denuncia
+     * Mostrar detalles de una denuncia específica
+     * 
+     * @param int $complaintId
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function storeComplaint(Request $request)
+    public function showComplaint($complaintId)
     {
         $user = Auth::user();
 
-        // Validaciones para el registro de denuncia
-        $validator = Validator::make($request->all(), [
-            'incident_date' => [
-                'required',
-                'date',
-                'before_or_equal:today'
-            ],
-            'ticket_id' => [
-                'required',
-                'exists:tickets,ticket_id'
-            ],
-            'motive_id' => [
-                'required',
-                'exists:motives,motive_id'
-            ],
-            'incident_airport_id' => [
-                'required',
-                'exists:airports,airport_id'
-            ],
-            'description' => [
-                'required',
-                'string',
-                'max:5000'
-            ],
-            'files.*' => [
-                'file',
-                'max:10240', // 10MB máximo
-                'mimes:pdf,jpg,jpeg,png,doc,docx'
-            ]
-        ]);
+        try {
+            // Query base con todas las relaciones necesarias
+            $query = Complaint::with([
+                'complaintStatus',
+                'motive',
+                'ticket.airline',
+                'ticket.originAirport',
+                'ticket.destinationAirport',
+                'ticket.incidentAirport',
+                'user',
+                'processedBy',
+                'files'
+            ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
-        }
-
-        // Crear denuncia
-        $complaint = new Complaint();
-        $complaint->registration_date = now();
-        $complaint->incident_date = $request->incident_date;
-        $complaint->description = $request->description;
-        $complaint->motive_id = $request->motive_id;
-        $complaint->incident_airport_id = $request->incident_airport_id;
-        $complaint->ticket_id = $request->ticket_id;
-        $complaint->user_id = $user->user_id;
-        $complaint->complaint_status_id = 1; // Estado inicial: en espera
-        $complaint->save();
-
-        // Manejar archivos adjuntos
-        if ($request->hasFile('files')) {
-            foreach ($request->file('files') as $uploadedFile) {
-                $path = $uploadedFile->store('complaint_files', 'public');
-
-                $file = new File();
-                $file->filename = $uploadedFile->getClientOriginalName();
-                $file->path = $path;
-                $file->size = $uploadedFile->getSize();
-                $file->file_type = $uploadedFile->getClientOriginalExtension();
-                $file->complaint_id = $complaint->complaint_id;
-                $file->save();
+            // Filtrar según el rol del usuario
+            if ($user->role->role_name === 'administrado') {
+                // Los administrados solo pueden ver sus propias denuncias
+                $complaint = $query->where('user_id', $user->user_id)
+                    ->where('complaint_id', $complaintId)
+                    ->firstOrFail();
+            } elseif (in_array($user->role->role_name, ['administrador', 'funcionario'])) {
+                // Los administradores y funcionarios pueden ver cualquier denuncia
+                $complaint = $query->where('complaint_id', $complaintId)
+                    ->firstOrFail();
+            } else {
+                return response()->json(['error' => 'No autorizado'], 403);
             }
-        }
 
-        return response()->json([
-            'message' => 'Denuncia registrada exitosamente',
-            'complaint_id' => $complaint->complaint_id
-        ], 201);
+            return response()->json($complaint);
+        } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+            return response()->json([
+                'error' => 'Denuncia no encontrada',
+                'message' => 'La denuncia solicitada no existe o no tienes permisos para acceder a ella'
+            ], 404);
+        } catch (\Exception $e) {
+            Log::error('Error al obtener denuncia: ' . $e->getMessage());
+
+            return response()->json([
+                'error' => 'Error al obtener la denuncia',
+                'message' => env('APP_DEBUG') ? $e->getMessage() : 'Error interno del servidor'
+            ], 500);
+        }
+    }
+
+    /**
+     * Registrar nueva denuncia con creación o verificación de ticket
+     * 
+     * @param StoreComplaintRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function storeComplaint(StoreComplaintRequest $request)
+    {
+        // La validación ya se manejó en el Form Request
+        $user = Auth::user();
+        $usingExistingTicket = $request->has('ticket_id') && !$request->has('flight_number');
+
+        // Iniciar transacción para asegurar que ambos (ticket y denuncia) se creen o ninguno
+        DB::beginTransaction();
+
+        try {
+            $ticketId = null;
+
+            // Crear ticket nuevo si es necesario o verificar el existente
+            if (!$usingExistingTicket) {
+                $ticket = $this->ticketService->createTicket($request->all());
+                $ticketId = $ticket->ticket_id;
+            } else {
+                // El Form Request ya validó que el ticket pertenece al usuario
+                $ticketId = $request->ticket_id;
+            }
+
+            // Crear denuncia
+            $complaint = new Complaint();
+            $complaint->registration_date = now();
+            $complaint->incident_date = $request->incident_date;
+            $complaint->description = $request->description;
+            $complaint->motive_id = $request->motive_id;
+            $complaint->incident_airport_id = $request->incident_airport_id;
+            $complaint->ticket_id = $ticketId;
+            $complaint->user_id = $user->user_id;
+            $complaint->complaint_status_id = 1; // Estado inicial: en espera
+            $complaint->save();
+
+            // Manejar archivos adjuntos
+            if ($request->hasFile('files')) {
+                $this->fileService->uploadFiles($request->file('files'), $complaint->complaint_id);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Denuncia registrada exitosamente',
+                'complaint_id' => $complaint->complaint_id,
+                'ticket_id' => $ticketId,
+                'is_new_ticket' => !$usingExistingTicket
+            ], 201);
+        } catch (QueryException $qe) {
+            DB::rollBack();
+            Log::error('Error de base de datos: ' . $qe->getMessage());
+
+            return response()->json([
+                'error' => 'Error en la base de datos al registrar la denuncia',
+                'message' => env('APP_DEBUG') ? $qe->getMessage() : 'Error interno del servidor'
+            ], 500);
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('Error general: ' . $e->getMessage());
+
+            return response()->json([
+                'error' => 'Error al registrar la denuncia',
+                'message' => env('APP_DEBUG') ? $e->getMessage() : 'Error interno del servidor'
+            ], 500);
+        }
     }
 
     /**
      * Procesar denuncia (para administrador y funcionario)
+     * 
+     * @param ProcessComplaintRequest $request
+     * @param int $complaintId
+     * @return \Illuminate\Http\JsonResponse
      */
-    public function processComplaint(Request $request, $complaintId)
+    public function processComplaint(ProcessComplaintRequest $request, $complaintId)
     {
+        // La validación ya se manejó en el Form Request
         $user = Auth::user();
 
-        // Solo administradores y funcionarios pueden procesar
-        if (!in_array($user->role->role_name, ['administrador', 'funcionario'])) {
-            return response()->json(['error' => 'No autorizado'], 403);
-        }
+        try {
+            $complaint = Complaint::findOrFail($complaintId);
 
-        $validator = Validator::make($request->all(), [
-            'complaint_status_id' => [
-                'required',
-                Rule::in([2, 3]) // Procesada o desestimada
-            ],
-            'processing_notes' => [
-                'required',
-                'string',
-                'max:5000'
-            ]
-        ]);
+            $complaint->complaint_status_id = $request->complaint_status_id;
+            $complaint->processing_notes = $request->processing_notes;
+            $complaint->processed_by = $user->user_id;
+            $complaint->save();
 
-        if ($validator->fails()) {
             return response()->json([
-                'errors' => $validator->errors()
-            ], 422);
+                'message' => 'Denuncia procesada exitosamente',
+                'complaint_id' => $complaint->complaint_id
+            ]);
+        } catch (\Exception $e) {
+            Log::error('Error al procesar denuncia: ' . $e->getMessage());
+
+            return response()->json([
+                'error' => 'Error al procesar la denuncia',
+                'message' => env('APP_DEBUG') ? $e->getMessage() : 'Error interno del servidor'
+            ], 500);
         }
-
-        $complaint = Complaint::findOrFail($complaintId);
-
-        $complaint->complaint_status_id = $request->complaint_status_id;
-        $complaint->processing_notes = $request->processing_notes;
-        $complaint->processed_by = $user->user_id;
-        $complaint->save();
-
-        return response()->json([
-            'message' => 'Denuncia procesada exitosamente',
-            'complaint_id' => $complaint->complaint_id
-        ]);
     }
 }
