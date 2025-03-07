@@ -35,6 +35,18 @@ use App\Http\Controllers\ComplaintController;
 |
 */
 
+Route::get('/generate-test-token', function () {
+    // Solo para entorno de desarrollo
+    if (app()->environment('production')) {
+        abort(403);
+    }
+
+    $user = \App\Models\User::find(1); // Obtener el usuario por ID
+    $token = $user->createToken('test-token')->plainTextToken;
+
+    return ['token' => $token];
+});
+
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
     /*
@@ -50,6 +62,20 @@ Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
      */
     Route::get('/denuncias', [ComplaintController::class, 'listComplaints'])
         ->name('denuncias.list');
+
+    /*
+     * [Detalle de Denuncia]
+     *
+     * Endpoint: GET /api/v1/denuncias/{complaintId}
+     *
+     * - Si el usuario autenticado tiene rol "administrado", solo podrá ver una denuncia si le pertenece.
+     * - Si el usuario tiene rol "administrador" o "funcionario", podrá ver cualquier denuncia.
+     *
+     * No se aplica un middleware de rol específico ya que el controlador se encarga
+     * de verificar los permisos según el rol del usuario.
+     */
+    Route::get('/denuncias/{complaintId}', [ComplaintController::class, 'showComplaint'])
+        ->name('denuncias.show');
 
     /*
      * [Registro de Denuncia]
