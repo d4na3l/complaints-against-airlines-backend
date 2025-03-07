@@ -2,6 +2,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\ComplaintController;
+use App\Http\Controllers\AuthController;
 
 /*
 |--------------------------------------------------------------------------
@@ -46,6 +47,16 @@ Route::get('/generate-test-token', function () {
 
     return ['token' => $token];
 });
+
+// Endpoint para iniciar sesión. Devuelve un token para autenticación.
+Route::post('/v1/auth/login', [AuthController::class, 'loginUser'])
+    ->name('login');
+
+// Endpoint para registrar un nuevo usuario.
+// Importante: Solo se permite el registro de usuarios con rol "administrado".
+Route::post('/v1/auth/register', [AuthController::class, 'createUser'])
+    ->middleware('role:administrado_routes')
+    ->name('registro');
 
 Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
