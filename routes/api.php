@@ -1,8 +1,9 @@
 <?php
 
+use App\Http\Controllers\ReferenceDataController;
 use Illuminate\Support\Facades\Route;
 // use App\Http\Controllers\AuthController;
-// use App\Http\Controllers\UsuarioController;
+// use App\Http\Controllers\UserController;
 // use App\Http\Controllers\DenunciaController;
 
 /*
@@ -66,7 +67,7 @@ use Illuminate\Support\Facades\Route;
 
  // Listado de todos los usuarios (solo accesible para administradores).
  Route::middleware(['auth:sanctum', 'role:admin_routes'])->group(function () {
-     Route::get('/v1/usuarios', [UsuarioController::class, 'index'])
+     Route::get('/v1/usuarios', [UserController::class, 'index'])
          ->name('usuarios.index');
  });
 
@@ -116,4 +117,21 @@ use Illuminate\Support\Facades\Route;
  Estos ejemplos sirven como base para estructurar la API y pueden ser ampliados o modificados
  según las necesidades del negocio.
 */
+
+// Rutas para datos referenciales
+    Route::middleware(['auth:sanctum', 'role:admin_routes'])->group(function () {
+
+     // Solo accesible para administradores
+    Route::post('/reference-data/clear-cache', [ReferenceDataController::class, 'clearReferenceCache']);
+});
+Route::get('/reference-data', [ReferenceDataController::class, 'getAllReferences']);
+        Route::get('/reference-data/airlines', [ReferenceDataController::class, 'getAirlines']);
+        Route::get('/reference-data/airports', [ReferenceDataController::class, 'getAirports']);
+        Route::get('/reference-data/complaint-status', [ReferenceDataController::class, 'getComplaintStatus']);
+        Route::get('/reference-data/countries', [ReferenceDataController::class, 'getCountries']);
+        Route::get('/reference-data/document-types', [ReferenceDataController::class, 'getDocumentTypes']);
+        Route::get('/reference-data/flight-types', [ReferenceDataController::class, 'getFlightTypes']);
+        Route::get('/reference-data/motives', [ReferenceDataController::class, 'getMotives']);
+        Route::get('/reference-data/roles', [ReferenceDataController::class, 'getRoles']);
+        Route::get('/reference-data/airports-by-airline/{airlineId}', [ReferenceDataController::class, 'getAirportsByAirline']);
 
