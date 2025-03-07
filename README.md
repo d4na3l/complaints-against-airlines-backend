@@ -46,6 +46,11 @@ Para colaborar en este proyecto, utilizaremos **conventional commits** como guí
     - Trabajaremos en la rama `develop` para probar y desarrollar nuevas funcionalidades. Para una organización adecuada, sigue estos pasos:
 
     #### Paso a Paso:
+    - **Crear una nueva rama para tu trabajo:**
+
+    ```bash
+    git branch develop
+    ```
 
     - **Cambiar a la rama `develop`:**
 
@@ -62,7 +67,11 @@ Para colaborar en este proyecto, utilizaremos **conventional commits** como guí
     - **Crear una rama nueva para la funcionalidad específica (basada en develop):** Usa un nombre descriptivo para la nueva rama. Por ejemplo, si trabajas en el análisis de empleabilidad:
 
     ```bash
-    git checkout -b feature/report-view
+    git branch feature/report-view
+    ```
+
+    ```bash
+    git checkout feature/report-view
     ```
 
 2. Realizar Cambios y Subirlos al Repositorio
@@ -72,15 +81,23 @@ Para colaborar en este proyecto, utilizaremos **conventional commits** como guí
     #### Paso a Paso:
 
     - **Añadir los archivos que deseas confirmar al commit:**
+    
+        - Ejemplo 1
 
-    ```bash
-    git add .
-    ```
+           ```bash
+           git add .
+           ```
+
+       - Ejemplo 2
+   
+           ```bash
+           git add name_file1.php name_file2.php directory/another_directory
+           ```
 
     - **Crear un commit con un mensaje descriptivo siguiendo el formato de conventional commits:**
 
     ```bash
-    git commit -m "Commit que siga las convenciones previamente presentadas"
+    git commit -m "commit: seguir las convenciones previamente presentadas"
     ```
 
     - **Enviar la rama con tus cambios al repositorio:**
@@ -103,3 +120,139 @@ Para colaborar en este proyecto, utilizaremos **conventional commits** como guí
     - **Solicitar revisión para que el administrador pueda revisar y dar feedback.**
 
     **_NOTA:_** No fusionar el pull request a develop directamente. Solo el administrador tiene permisos para fusionar los cambios después de la revisión.
+
+## Ejecucion de la aplicacion
+
+1. Creacion de Base de Datos de PostgreSQL
+   
+    ### Windows
+      
+    #### Paso a Paso:
+    - **Descargar el instalador:**
+      [Link al Instalador de PostgreSQL](https://www.enterprisedb.com/downloads/postgres-postgresql-downloads)
+
+      **__NOTA:_** La version usada de PostgreSQL es la 15.10
+
+    - **Ejecutar el instalador y seguir las instrucciones:**
+        [Seguir las instrucciones](https://www.enterprisedb.com/docs/supported-open-source/postgresql/installing/windows/)
+
+      > [!IMPORTANT]
+      > 
+      > Si alguna versión de PostgreSQL ha sido instalada previamente, el puerto por defecto se mapeará al 5433.
+
+    - **Probamos la instalación:**
+      ```cmd
+      psql -U postgres
+      ```
+
+    - **Creamos un usuario en la base de datos:** 
+      ```psql
+      CREATE USER nuevo_usuario WITH PASSWORD 'contraseña_usuario';
+      ```
+      
+    - **Le damos superusuario al usuario creado:**
+      ```psql
+      ALTER USER nuevo_usuario WITH SUPERUSER;
+      ```
+
+    - **Creamos la base de datos:**
+      ```psql
+      CREATE DATABASE nombre_basededatos OWNER nuevo_usuario;
+      ```
+
+    - **Garantizamos que nuestro usuario tenga todos los privilegios sobre la base de datos creada:**
+      ```psql
+      GRANT ALL PRIVILEGES ON DATABASE nombre_basededatos TO nuevo_usuario;
+      ```
+
+    ### Linux
+   
+    #### Paso a Paso:
+    - **Actualizamos repositorios:**
+      ```bash
+      sudo apt update
+      ```
+
+    - **Instalamos PostgreSQL:**
+      ```bash
+      sudo apt install postgresql
+      ```
+
+    - **Cambiamos al usuario de postgres:**
+      ```bash
+      sudo -i -u postgres
+      ```
+      
+    - **Inicializamos la consola postgres:**
+      ```bash
+      psql
+      ```
+      
+    - **Cambiamos la contraseña por defecto del usuario PostgreSQL:**
+      ```bash
+      ALTER USER postgres WITH PASSWORD 'tu_nueva_contraseña';
+      ```
+
+    - **Creamos un usuario en la base de datos:** 
+      ```psql
+      CREATE USER nuevo_usuario WITH PASSWORD 'contraseña_usuario';
+      ```
+      
+    - **Le damos superusuario al usuario creado:**
+      ```psql
+      ALTER USER nuevo_usuario WITH SUPERUSER;
+      ```
+
+    - **Creamos la base de datos:**
+      ```psql
+      CREATE DATABASE nombre_basededatos OWNER nuevo_usuario;
+      ```
+
+    - **Garantizamos que nuestro usuario tenga todos los privilegios sobre la base de datos creada:**
+      ```psql
+      GRANT ALL PRIVILEGES ON DATABASE nombre_basededatos TO nuevo_usuario;
+      ```
+
+3. Configuración de las variables de Entorno:
+   
+   #### Paso a Paso:
+    - **Copiar el contenido del archivo .env.example y pegarlo en un nuevo archivo llamado .env**
+  
+    - **Cambiar valores de las variables:**
+      ```code
+      DB_CONNECTION=pgsql
+      DB_HOST=localhost
+      DB_PORT=5432 // o 5433 dependiendo de tu caso
+      DB_DATABASE=nombre_delabasededatos
+      DB_PATH=public // si la base de datos fue creada en el esquema public
+      DB_USERNAME=nombre_deusuario
+      DB_PASSWORD=contraseña_usuario
+      ```
+
+4. Instalación de dependencias
+   
+   #### Paso a Paso:
+   - **Instalar las dependencias del proyecto:**
+       ```bash
+         composer install
+       ```
+        >[!NOTE]
+        >
+        > Asegurese que todas las dependencias esten instaladas en su entorno de desarrollo (composer, php, ...)
+
+    - **Generar un key en dado caso que no se haya generado automaticamente:**
+        ```bash
+        php artisan key:generate
+        ```
+
+5. Migraciones y ejecución de la aplicación
+
+    - **Generar las migraciones a la base de datos:**
+      ```bash
+      php artisan migrate:refresh --seed
+      ```
+
+    - **Ejecutar sevidor de Laravel:**
+      ```bash
+      php artisan serve
+      ```
