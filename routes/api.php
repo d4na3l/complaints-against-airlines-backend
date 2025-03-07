@@ -51,12 +51,12 @@ use Illuminate\Support\Facades\Route;
  // =========================
 
  // Endpoint para iniciar sesión. Devuelve un token para autenticación.
- Route::post('/v1/login', [AuthController::class, 'login'])
+ Route::post('/v1/auth/register', [AuthController::class, 'createUser'])
      ->name('login');
 
  // Endpoint para registrar un nuevo usuario.
  // Importante: Solo se permite el registro de usuarios con rol "administrado".
- Route::post('/v1/registro', [AuthController::class, 'registro'])
+ Route::post('/v1/auth/login', [AuthController::class, 'loginUser'])
      ->middleware('role:administrado_routes')
      ->name('registro');
 
@@ -116,3 +116,4 @@ use Illuminate\Support\Facades\Route;
  Estos ejemplos sirven como base para estructurar la API y pueden ser ampliados o modificados
  según las necesidades del negocio.
 */
+
