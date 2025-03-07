@@ -18,6 +18,7 @@ class CreateComplaintsTable extends Migration
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('ticket_id');
             $table->text('processing_notes')->nullable();
+            $table->unsignedBigInteger('incident_airport_id');
             $table->unsignedBigInteger('processed_by')->nullable();
             $table->timestamps();
 
@@ -25,6 +26,7 @@ class CreateComplaintsTable extends Migration
             $table->foreign('complaint_status_id')->references('complaint_status_id')->on('complaint_status');
             $table->foreign('user_id')->references('user_id')->on('users');
             $table->foreign('ticket_id')->references('ticket_id')->on('tickets');
+            $table->foreign('incident_airport_id')->references('airport_id')->on('airports');
             $table->foreign('processed_by')->references('user_id')->on('users');
         });
     }

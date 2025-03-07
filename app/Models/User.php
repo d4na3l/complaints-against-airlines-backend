@@ -3,14 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Laravel\Sanctum\HasApiTokens;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens; // Asegúrate de agregar esta línea
 
 /**
  * Class User
  *
  * Representa a un usuario del sistema.
- * Los usuarios pueden tener diferentes roles y relaciones con otras entidades, como denuncias.
+ * Los usuarios pueden tener diferentes roles y relaciones con otras entidades, como tickets y denuncias.
  *
  * @property int $user_id
  * @property string $first_name
@@ -29,12 +31,14 @@ use Laravel\Sanctum\HasApiTokens;
  * @property string|null $domicile_address
  * @property string|null $additional_address
  *
+ * @method \Illuminate\Database\Eloquent\Collection tickets()
  * @method \Illuminate\Database\Eloquent\Collection complaints()
  * @method \Illuminate\Database\Eloquent\Collection processedComplaints()
  */
 class User extends Authenticatable
 {
-    use HasApiTokens, HasFactory;
+    use HasApiTokens, HasFactory, Notifiable;
+
     protected $table = 'users';
     protected $primaryKey = 'user_id';
 
@@ -55,6 +59,17 @@ class User extends Authenticatable
         'domicile_address',
         'additional_address'
     ];
+
+    /**
+     * Relación: Los tickets que pertenecen a este usuario.
+     * Un usuario puede tener muchos tickets.
+     *
+     * @return \Illuminate\Database\Eloquent\Relations\HasMany
+     */
+    public function tickets()
+    {
+        return $this->hasMany(Ticket::class, 'user_id', 'user_id');
+    }
 
     /**
      * Relación: El rol al que pertenece el usuario.

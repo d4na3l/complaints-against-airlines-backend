@@ -1,119 +1,120 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-// use App\Http\Controllers\AuthController;
-// use App\Http\Controllers\UsuarioController;
-// use App\Http\Controllers\DenunciaController;
+use App\Http\Controllers\ComplaintController;
+use App\Http\Controllers\AuthController;
 
 /*
- ====================================================================
- Ejemplo de Rutas API para consumo exclusivo desde Angular 19
- ====================================================================
-
- Este archivo define ejemplos de endpoints RESTful que el frontend en Angular
- consumirá para interactuar con el backend en Laravel.
-
- La API se encuentra versionada (v1) para facilitar la evolución en el futuro.
- Se emplean middleware para:
-   - Verificar que la solicitud provenga de un usuario autenticado (por ejemplo, auth:sanctum).
-   - Validar que el usuario posea el rol requerido para acceder al recurso.
-
- Las reglas del negocio son:
-   Usuarios con rol "administrado" (clientes/empresas) solo pueden:
-       - Registrarse a través del endpoint público de registro.
-       - Listar y crear sus propias denuncias.
-
-   Usuarios con rol "funcionario" (trabajadores del sistema) pueden:
-       - Listar todas las denuncias.
-       - Procesar denuncias (agregar notas, cambiar estado, etc.)
-
-   Usuarios con rol "administrador" (administradores del sistema) pueden:
-       - Listar todos los usuarios.
-       - Listar y procesar todas las denuncias.
-
- Para la verificación de roles se utiliza un middleware personalizado llamado 'role'
- que, en este ejemplo, utiliza las siguientes configuraciones:
-
-   - "admin_routes": Acceso exclusivo para administradores.
-   - "administrado_routes": Acceso exclusivo para usuarios administrados.
-   - "shared_routes": Acceso compartido para administradores y funcionarios.
-
- Nota: Los siguientes ejemplos están comentados; se recomienda ajustarlos según las
- necesidades específicas de la API y del frontend.
-
- ====================================================================
- Ejemplos de Endpoints
- ====================================================================
+|--------------------------------------------------------------------------
+| API Routes - Versión 1 (v1)
+|--------------------------------------------------------------------------
+|
+| Estas rutas conforman la API para la gestión de denuncias aeroportuarias.
+| Están diseñadas para ser consumidas por la aplicación Angular 19.
+|
+| Se aplican dos tipos principales de middleware:
+|   - 'auth:sanctum': Asegura que el usuario esté autenticado.
+|   - 'role:[tipo_ruta]': Middleware personalizado que valida el rol del usuario
+|                         según las siguientes reglas del negocio:
+|
+|   * Usuarios con rol "administrado":
+|       - Solo pueden registrar denuncias y consultar sus propias denuncias.
+|
+|   * Usuarios con rol "administrador":
+|       - Pueden listar todos los usuarios y todas las denuncias.
+|       - Pueden procesar denuncias.
+|
+|   * Usuarios con rol "funcionario":
+|       - Pueden listar todas las denuncias.
+|       - Pueden procesar denuncias.
+|
+| Para facilitar la gestión, se definen tres configuraciones de rutas en el middleware
+| 'role':
+|   - "administrado_routes": Para endpoints exclusivos de usuarios administrados.
+|   - "admin_routes": Para endpoints exclusivos de administradores.
+|   - "shared_routes": Para endpoints compartidos entre administradores y funcionarios.
+|
 */
 
- // =========================
- // RUTAS PÚBLICAS DE AUTENTICACIÓN
- // =========================
+Route::get('/generate-test-token', function () {
+    // Solo para entorno de desarrollo
+    if (app()->environment('production')) {
+        abort(403);
+    }
 
- // Endpoint para iniciar sesión. Devuelve un token para autenticación.
- Route::post('/v1/auth/register', [AuthController::class, 'createUser'])
-     ->name('login');
+    $user = \App\Models\User::find(1); // Obtener el usuario por ID
+    $token = $user->createToken('test-token')->plainTextToken;
 
- // Endpoint para registrar un nuevo usuario.
- // Importante: Solo se permite el registro de usuarios con rol "administrado".
- Route::post('/v1/auth/login', [AuthController::class, 'loginUser'])
-     ->middleware('role:administrado_routes')
-     ->name('registro');
+    return ['token' => $token];
+});
 
- // =========================
- // RUTAS PROTEGIDAS PARA ADMINISTRADORES
- // =========================
+// Endpoint para iniciar sesión. Devuelve un token para autenticación.
+Route::post('/v1/auth/login', [AuthController::class, 'loginUser'])
+    ->name('login');
 
- // Listado de todos los usuarios (solo accesible para administradores).
- Route::middleware(['auth:sanctum', 'role:admin_routes'])->group(function () {
-     Route::get('/v1/usuarios', [UsuarioController::class, 'index'])
-         ->name('usuarios.index');
- });
+// Endpoint para registrar un nuevo usuario.
+// Importante: Solo se permite el registro de usuarios con rol "administrado".
+Route::post('/v1/auth/register', [AuthController::class, 'createUser'])
+    ->middleware('role:administrado_routes')
+    ->name('registro');
 
- // Gestión de denuncias: listado y procesamiento.
- // Los administradores pueden ver todas las denuncias y procesarlas.
- Route::middleware(['auth:sanctum', 'role:admin_routes'])->group(function () {
-    //  Route::get('/v1/denuncias', [DenunciaController::class, 'index'])
-    //      ->name('denuncias.index');
-    //  Route::put('/v1/denuncias/{denuncia}/procesar', [DenunciaController::class, 'procesar'])
-    //      ->name('denuncias.procesar');
- });
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
 
- // =========================
- // RUTAS PROTEGIDAS PARA USUARIOS ADMINISTRADOS
- // =========================
+    /*
+     * [Listado de Denuncias]
+     *
+     * Endpoint: GET /api/v1/denuncias
+     *
+     * - Si el usuario autenticado tiene rol "administrado", solo se listarán sus denuncias.
+     * - Si el usuario tiene rol "administrador" o "funcionario", se listarán todas las denuncias.
+     *
+     * No se aplica un middleware de rol específico ya que el controlador distingue
+     * el listado según el rol del usuario.
+     */
+    Route::get('/denuncias', [ComplaintController::class, 'listComplaints'])
+        ->name('denuncias.list');
 
- // Permite a los usuarios administrados registrar nuevas denuncias
- // y consultar únicamente las denuncias propias.
- Route::middleware(['auth:sanctum', 'role:administrado_routes'])->group(function () {
-    //  Route::post('/v1/denuncias', [DenunciaController::class, 'store'])
-    //      ->name('denuncias.store');
-    //  Route::get('/v1/mis-denuncias', [DenunciaController::class, 'misDenuncias'])
-    //      ->name('denuncias.mis');
- });
+    /*
+     * [Detalle de Denuncia]
+     *
+     * Endpoint: GET /api/v1/denuncias/{complaintId}
+     *
+     * - Si el usuario autenticado tiene rol "administrado", solo podrá ver una denuncia si le pertenece.
+     * - Si el usuario tiene rol "administrador" o "funcionario", podrá ver cualquier denuncia.
+     *
+     * No se aplica un middleware de rol específico ya que el controlador se encarga
+     * de verificar los permisos según el rol del usuario.
+     */
+    Route::get('/denuncias/{complaintId}', [ComplaintController::class, 'showComplaint'])
+        ->name('denuncias.show');
 
- // =========================
- // RUTAS COMPARTIDAS PARA ADMINISTRADORES Y FUNCIONARIOS
- // =========================
+    /*
+     * [Registro de Denuncia]
+     *
+     * Endpoint: POST /api/v1/denuncias
+     *
+     * Permite a un usuario con rol "administrado" registrar una nueva denuncia.
+     * Se validan datos como la fecha del hecho, la existencia del ticket, motivo, descripción,
+     * y se gestionan los archivos adjuntos.
+     *
+     * Se restringe con el middleware 'role:administrado_routes' para asegurar que solo
+     * usuarios administrados puedan acceder a esta funcionalidad.
+     */
+    Route::post('/denuncias', [ComplaintController::class, 'storeComplaint'])
+        ->middleware('role:administrado_routes')
+        ->name('denuncias.store');
 
- // Gestión del perfil del usuario (accesible para roles que comparten esta funcionalidad,
- // en este caso, administradores y funcionarios).
- Route::middleware(['auth:sanctum', 'role:shared_routes'])->group(function () {
-    //  Route::get('/v1/perfil', [UsuarioController::class, 'perfil'])
-    //      ->name('perfil.ver');
-    //  Route::put('/v1/perfil', [UsuarioController::class, 'actualizarPerfil'])
-    //      ->name('perfil.actualizar');
- });
-
-/*
- ====================================================================
- Recomendaciones para el Consumo desde Angular:
-
- - Utilizar Angular HttpClient para interactuar con estos endpoints.
- - Manejar los tokens de autenticación en el cliente y pasarlos en las cabeceras de cada solicitud.
- - Implementar manejo de errores en Angular para procesar respuestas 401, 403 y 500.
-
- Estos ejemplos sirven como base para estructurar la API y pueden ser ampliados o modificados
- según las necesidades del negocio.
-*/
-
+    /*
+     * [Procesamiento de Denuncias]
+     *
+     * Endpoint: PUT /api/v1/denuncias/{complaintId}/procesar
+     *
+     * Permite a usuarios con rol "administrador" o "funcionario" actualizar el estado de una denuncia,
+     * agregando notas de procesamiento (por ejemplo, razón de desestimación o pasos siguientes).
+     *
+     * Se aplica el middleware 'role:shared_routes' para limitar el acceso a administradores y funcionarios.
+     */
+    Route::put('/denuncias/{complaintId}/procesar', [ComplaintController::class, 'processComplaint'])
+        ->middleware('role:shared_routes')
+        ->name('denuncias.process');
+});

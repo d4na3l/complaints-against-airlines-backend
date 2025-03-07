@@ -13,6 +13,7 @@ class AirportsSeeder extends Seeder
             ['airport_name' => 'Aeropuerto Ficticio A'],
             ['airport_name' => 'Aeropuerto Ficticio B'],
             ['airport_name' => 'Aeropuerto Ficticio C'],
+            ['airport_name' => 'Aeropuerto Ficticio D'],
         ]);
     }
 }
