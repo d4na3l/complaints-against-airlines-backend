@@ -1,8 +1,10 @@
 <?php
 
-use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\ReferenceDataController;
+use App\Http\Controllers\UserController;
 use App\Http\Controllers\ComplaintController;
 use App\Http\Controllers\AuthController;
+use Illuminate\Support\Facades\Route;
 
 /*
 |--------------------------------------------------------------------------
@@ -12,109 +14,161 @@ use App\Http\Controllers\AuthController;
 | Estas rutas conforman la API para la gestión de denuncias aeroportuarias.
 | Están diseñadas para ser consumidas por la aplicación Angular 19.
 |
-| Se aplican dos tipos principales de middleware:
-|   - 'auth:sanctum': Asegura que el usuario esté autenticado.
-|   - 'role:[tipo_ruta]': Middleware personalizado que valida el rol del usuario
-|                         según las siguientes reglas del negocio:
+| Se implementa una estructura de autorización basada en roles utilizando
+| Laravel 12, que ofrece una sintaxis más limpia para definir grupos de rutas
+| y middleware.
 |
-|   * Usuarios con rol "administrado":
-|       - Solo pueden registrar denuncias y consultar sus propias denuncias.
+| Roles y permisos:
+|   * "administrado":
+|       - Registrar denuncias
+|       - Consultar sus propias denuncias
 |
-|   * Usuarios con rol "administrador":
-|       - Pueden listar todos los usuarios y todas las denuncias.
-|       - Pueden procesar denuncias.
+|   * "administrador":
+|       - Gestionar usuarios (listar)
+|       - Acceder a todas las denuncias
+|       - Procesar denuncias
+|       - Administrar datos de referencia
 |
-|   * Usuarios con rol "funcionario":
-|       - Pueden listar todas las denuncias.
-|       - Pueden procesar denuncias.
-|
-| Para facilitar la gestión, se definen tres configuraciones de rutas en el middleware
-| 'role':
-|   - "administrado_routes": Para endpoints exclusivos de usuarios administrados.
-|   - "admin_routes": Para endpoints exclusivos de administradores.
-|   - "shared_routes": Para endpoints compartidos entre administradores y funcionarios.
+|   * "funcionario":
+|       - Acceder a todas las denuncias
+|       - Procesar denuncias
 |
 */
 
-Route::get('/generate-test-token', function () {
-    // Solo para entorno de desarrollo
-    if (app()->environment('production')) {
-        abort(403);
-    }
+// Ruta de prueba para generar token (solo en entorno de desarrollo)
+if (app()->environment('local', 'dev', 'test')) {
+    Route::get('/generate-test-token', function () {
+        $user = \App\Models\User::find(1);
+        $token = $user->createToken('test-token')->plainTextToken;
 
-    $user = \App\Models\User::find(1); // Obtener el usuario por ID
-    $token = $user->createToken('test-token')->plainTextToken;
+        return ['token' => $token];
+    });
+}
 
-    return ['token' => $token];
-});
-
-// Endpoint para iniciar sesión. Devuelve un token para autenticación.
-Route::post('/v1/auth/login', [AuthController::class, 'loginUser'])
-    ->name('login');
-
-// Endpoint para registrar un nuevo usuario.
-// Importante: Solo se permite el registro de usuarios con rol "administrado".
-Route::post('/v1/auth/register', [AuthController::class, 'createUser'])
-    ->middleware('role:administrado_routes')
-    ->name('registro');
-
-Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+// Rutas públicas de autenticación
+Route::prefix('v1/auth')->group(function () {
+    /*
+     * [Login de Usuario]
+     * 
+     * Endpoint: POST /api/v1/auth/login
+     * 
+     * Autentica a un usuario y devuelve un token de acceso.
+     * No requiere autenticación previa.
+     */
+    Route::post('/login', [AuthController::class, 'loginUser'])
+        ->name('auth.login');
 
     /*
-     * [Listado de Denuncias]
-     *
-     * Endpoint: GET /api/v1/denuncias
-     *
-     * - Si el usuario autenticado tiene rol "administrado", solo se listarán sus denuncias.
-     * - Si el usuario tiene rol "administrador" o "funcionario", se listarán todas las denuncias.
-     *
-     * No se aplica un middleware de rol específico ya que el controlador distingue
-     * el listado según el rol del usuario.
+     * [Registro de Usuario]
+     * 
+     * Endpoint: POST /api/v1/auth/register
+     * 
+     * Registra un nuevo usuario con rol "administrado".
+     * No permite registrar usuarios con otros roles por seguridad.
      */
+    Route::post('/register', [AuthController::class, 'createUser'])
+        ->middleware('role:administrado_routes')
+        ->name('auth.register');
+});
+
+// Agrupación de rutas protegidas con autenticación
+Route::prefix('v1')->middleware('auth:sanctum')->group(function () {
+    /*
+     * [Rutas para Administradores]
+     * 
+     * Endpoints exclusivos para usuarios con rol "administrador".
+     * Incluye gestión de usuarios y administración de datos de referencia.
+     */
+    Route::middleware('role:admin_routes')->group(function () {
+        // Gestión de usuarios
+        Route::apiResource('usuarios', UserController::class)
+            ->only(['index'])
+            ->names([
+                'index' => 'usuarios.index',
+            ]);
+
+        // Gestión de caché de datos de referencia
+        Route::post('/reference-data/clear-cache', [ReferenceDataController::class, 'clearReferenceCache'])
+            ->name('reference-data.clear-cache');
+    });
+
+    /*
+     * [Rutas para Administrados]
+     * 
+     * Endpoints exclusivos para usuarios con rol "administrado".
+     * Principalmente para registrar nuevas denuncias.
+     */
+    Route::middleware('role:administrado_routes')->group(function () {
+        // Registro de denuncias
+        Route::post('/denuncias', [ComplaintController::class, 'storeComplaint'])
+            ->name('denuncias.store');
+    });
+
+    /*
+     * [Rutas compartidas entre Administradores y Funcionarios]
+     * 
+     * Endpoints accesibles para usuarios con rol "administrador" o "funcionario".
+     * Relacionados con el procesamiento de denuncias.
+     */
+    Route::middleware('role:shared_routes')->group(function () {
+        // Procesamiento de denuncias
+        Route::put('/denuncias/{complaintId}/procesar', [ComplaintController::class, 'processComplaint'])
+            ->name('denuncias.process');
+    });
+
+    /*
+     * [Rutas accesibles para todos los usuarios autenticados]
+     * 
+     * La lógica de control de acceso se implementa a nivel de controlador:
+     * - Los "administrados" solo ven sus propias denuncias
+     * - Los "administradores" y "funcionarios" ven todas las denuncias
+     */
+
+    // Consulta de denuncias (filtrado por rol en el controlador)
     Route::get('/denuncias', [ComplaintController::class, 'listComplaints'])
         ->name('denuncias.list');
 
-    /*
-     * [Detalle de Denuncia]
-     *
-     * Endpoint: GET /api/v1/denuncias/{complaintId}
-     *
-     * - Si el usuario autenticado tiene rol "administrado", solo podrá ver una denuncia si le pertenece.
-     * - Si el usuario tiene rol "administrador" o "funcionario", podrá ver cualquier denuncia.
-     *
-     * No se aplica un middleware de rol específico ya que el controlador se encarga
-     * de verificar los permisos según el rol del usuario.
-     */
     Route::get('/denuncias/{complaintId}', [ComplaintController::class, 'showComplaint'])
         ->name('denuncias.show');
 
     /*
-     * [Registro de Denuncia]
-     *
-     * Endpoint: POST /api/v1/denuncias
-     *
-     * Permite a un usuario con rol "administrado" registrar una nueva denuncia.
-     * Se validan datos como la fecha del hecho, la existencia del ticket, motivo, descripción,
-     * y se gestionan los archivos adjuntos.
-     *
-     * Se restringe con el middleware 'role:administrado_routes' para asegurar que solo
-     * usuarios administrados puedan acceder a esta funcionalidad.
+     * [Rutas de datos de referencia]
+     * 
+     * Endpoints para obtener datos de catálogos y referencias.
+     * Accesibles para todos los usuarios autenticados sin importar su rol.
      */
-    Route::post('/denuncias', [ComplaintController::class, 'storeComplaint'])
-        ->middleware('role:administrado_routes')
-        ->name('denuncias.store');
 
-    /*
-     * [Procesamiento de Denuncias]
-     *
-     * Endpoint: PUT /api/v1/denuncias/{complaintId}/procesar
-     *
-     * Permite a usuarios con rol "administrador" o "funcionario" actualizar el estado de una denuncia,
-     * agregando notas de procesamiento (por ejemplo, razón de desestimación o pasos siguientes).
-     *
-     * Se aplica el middleware 'role:shared_routes' para limitar el acceso a administradores y funcionarios.
-     */
-    Route::put('/denuncias/{complaintId}/procesar', [ComplaintController::class, 'processComplaint'])
-        ->middleware('role:shared_routes')
-        ->name('denuncias.process');
+    // Obtener todos los datos de referencia
+    Route::get('/reference-data', [ReferenceDataController::class, 'getAllReferences'])
+        ->name('reference-data.all');
+
+    // Rutas específicas para cada tipo de dato de referencia
+    Route::prefix('reference-data')->name('reference-data.')->group(function () {
+        Route::get('/airlines', [ReferenceDataController::class, 'getAirlines'])
+            ->name('airlines');
+
+        Route::get('/airports', [ReferenceDataController::class, 'getAirports'])
+            ->name('airports');
+
+        Route::get('/complaint-status', [ReferenceDataController::class, 'getComplaintStatus'])
+            ->name('complaint-status');
+
+        Route::get('/countries', [ReferenceDataController::class, 'getCountries'])
+            ->name('countries');
+
+        Route::get('/document-types', [ReferenceDataController::class, 'getDocumentTypes'])
+            ->name('document-types');
+
+        Route::get('/flight-types', [ReferenceDataController::class, 'getFlightTypes'])
+            ->name('flight-types');
+
+        Route::get('/motives', [ReferenceDataController::class, 'getMotives'])
+            ->name('motives');
+
+        Route::get('/roles', [ReferenceDataController::class, 'getRoles'])
+            ->name('roles');
+
+        Route::get('/airports-by-airline/{airlineId}', [ReferenceDataController::class, 'getAirportsByAirline'])
+            ->name('airports-by-airline');
+    });
 });
