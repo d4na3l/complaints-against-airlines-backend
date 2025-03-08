@@ -58,14 +58,14 @@ class AuthController extends Controller
                 "domicile_address" => $request->domicile_address,
                 "additional_address" => $request->additional_address,
                 "document_type_id" => $request->document_type_id,
-                "role_id" => $request->role_id,
+                "role_id" => 1,
                 "nationality_id" => $request->nationality_id,
                 "country_origin_id" => $request->country_origin_id
             ]);
 
             return response()->json([
                 'status' => true,
-                'message' => 'Usuarrio creado',
+                'message' => 'Usuario creado',
                 'token' => $user->createToken("API TOKEN")->plainTextToken
             ], 200);
 
