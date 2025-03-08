@@ -84,7 +84,6 @@ Route::prefix('v1/auth')->group(function () {
      * No permite registrar usuarios con otros roles por seguridad.
      */
     Route::post('/register', [AuthController::class, 'createUser'])
-        ->middleware('role:administrado_routes')
         ->name('auth.register');
 });
 
